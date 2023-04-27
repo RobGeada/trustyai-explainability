@@ -1,0 +1,15 @@
+apiVersion: kfdef.apps.kubeflow.org/v1
+kind: KfDef
+metadata:
+  name: trustyai
+spec:
+  applications:
+    - kustomizeConfig:
+        repoRef:
+          name: manifests
+          path: trustyai-service
+      name: trustyai
+  repos:
+    - name: manifests
+      uri: https://github.com/opendatahub-io/odh-manifests/tarball/master
+  version: master
