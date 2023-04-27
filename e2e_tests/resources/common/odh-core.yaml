@@ -58,7 +58,7 @@ spec:
       - name: monitoring-namespace
         value: opendatahub
       overlays:
-        - odh-model-controller`
+        - odh-model-controller
       repoRef:
         name: manifests-trustyai
         path: e2e_tests/resources/manifests/model-mesh
