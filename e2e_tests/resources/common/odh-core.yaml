@@ -54,21 +54,11 @@ spec:
         path: notebook-images
     name: notebook-images
   - kustomizeConfig:
-      overlays:
-        - metadata-store-mariadb
-        - ds-pipeline-ui
-        - object-store-minio
-        - default-configs
-      repoRef:
-        name: manifests
-        path: data-science-pipelines
-    name: data-science-pipelines
-  - kustomizeConfig:
       parameters:
       - name: monitoring-namespace
         value: opendatahub
       overlays:
-        - odh-model-controller
+        - odh-model-controller`
       repoRef:
         name: manifests-trustyai
         path: e2e_tests/resources/manifests/model-mesh
@@ -86,14 +76,9 @@ spec:
         name: manifests-trustyai
         path: e2e_tests/resources/manifests/trustyai-service
     name: trustyai
-  - kustomizeConfig:
-      repoRef:
-        name: manifests
-        path: data-science-pipelines-operator/
-    name: data-science-pipelines-operator
   repos:
   - name: manifests
     uri: https://github.com/opendatahub-io/odh-manifests/tarball/master
   - name: manifests-trustyai
-    uri: https://github.com/trustyai-explainability/trustyai-explainability/tarball/main
+    uri: https://github.com/robgeada/trustyai-explainability/tarball/RHODS-8036b
   version: master
