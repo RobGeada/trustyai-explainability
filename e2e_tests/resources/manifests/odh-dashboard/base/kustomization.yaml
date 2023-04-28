@@ -24,8 +24,8 @@ resources:
 - model-serving-role-binding.yaml
 images:
 - name: odh-dashboard
-  newName: quay.io/acreasy/odh-dashboard:summit23
-  newTag: v2.8.0
+  newName: quay.io/acreasy/odh-dashboard
+  newTag: summit23
 - name: oauth-proxy
   newName: registry.redhat.io/openshift4/ose-oauth-proxy
   newTag: v4.8
