@@ -1,0 +1,15 @@
+apiVersion: kfdef.apps.kubeflow.org/v1
+kind: KfDef
+metadata:
+  name: trustyai
+spec:
+  applications:
+    - kustomizeConfig:
+        repoRef:
+          name: manifests
+          path: e2e_tests/resources/manifests/trustyai-service
+      name: trustyai
+  repos:
+    - name: manifests
+      uri:  https://api.github.com/repos/trustyai-explainability/trustyai-explainability/tarball/main
+  version: master
