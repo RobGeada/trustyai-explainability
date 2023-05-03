@@ -117,7 +117,7 @@ spec:
                 configMapKeyRef:
                   key: service_metrics_schedule
                   name: trustyai-config
-          image: quay.io/trustyai/trustyai-service:onnx-patch
+          image: quay.io/rgeada/trustyai-service:ruitest
           imagePullPolicy: Always
           livenessProbe:
             failureThreshold: 3
