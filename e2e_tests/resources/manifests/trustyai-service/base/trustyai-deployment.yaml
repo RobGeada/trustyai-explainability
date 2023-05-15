@@ -117,7 +117,7 @@ spec:
                 configMapKeyRef:
                   key: service_metrics_schedule
                   name: trustyai-config
-          image: quay.io/rgeada/trustyai-service:979
+          image: $(image)
           imagePullPolicy: Always
           livenessProbe:
             failureThreshold: 3

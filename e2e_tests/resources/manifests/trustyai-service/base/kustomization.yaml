@@ -4,8 +4,20 @@ commonLabels:
   app: trustyai
   app.kubernetes.io/part-of: trustyai
 resources:
-- ../default
-- ../servicemonitors
-- trustyai-configmap.yaml
-- route.yaml
-- pvc.yaml
+  - trustyai-deployment.yaml
+  - ../servicemonitors
+  - route.yaml
+  - pvc.yaml
+configMapGenerator:
+  - name: trustyai-config
+    env: params.env
+configurations:
+  - params.yaml
+vars:
+  - name: image
+    objref:
+      kind: ConfigMap
+      name: trustyai-config
+      apiVersion: v1
+    fieldref:
+      fieldpath: data.image
