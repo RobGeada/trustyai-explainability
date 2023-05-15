@@ -56,7 +56,7 @@ spec:
   - kustomizeConfig:
       parameters:
       - name: monitoring-namespace
-        value: opendatahub
+        value: trustyai-e2e
       overlays:
         - odh-model-controller
       repoRef:
@@ -66,7 +66,7 @@ spec:
   - kustomizeConfig:
       parameters:
       - name: deployment-namespace
-        value: opendatahub
+        value: trustyai-e2e
       repoRef:
         name: manifests
         path: modelmesh-monitoring
