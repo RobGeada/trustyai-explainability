@@ -4,6 +4,7 @@ runs:
   using: "composite"
   steps:
     - name: "Pull prerequisite images"
+      shell: bash
       run: |
         docker pull $(cat Dockerfile | grep -o -P '(?<=FROM ).*(?= AS build)')
         docker pull $(cat Dockerfile | grep -o -P '(?<=FROM ).*(?= AS runtime)')

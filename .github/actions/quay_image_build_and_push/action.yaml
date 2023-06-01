@@ -8,14 +8,23 @@ inputs:
   tag:
     description: "Quay image tag"
     required: true
+  username:
+    description: "Quay robot username"
+    required: true
+  password:
+      description: "Quay robot password"
+      required: true
 
 
 runs:
   using: "composite"
   steps:
     - name: Build image
+      shell: bash
       run: docker build -t ${{ inputs.image-name }}:${{ inputs.tag }} .
     - name: Log in to Quay
-      run: docker login -u ${{ secrets.QUAY_ROBOT_USERNAME }} -p ${{ secrets.QUAY_ROBOT_SECRET }} quay.io
+      shell: bash
+      run: docker login -u ${{ inputs.username }} -p ${{ inputs.password }} quay.io
     - name: Push to Quay CI repo
+      shell: bash
       run: docker push ${{ inputs.image-name }}:${{ inputs.tag }}
