@@ -18,11 +18,12 @@ os::test::junit::declare_suite_start "$MY_SCRIPT"
 function get_authentication(){
   header "Getting authentication credentials to cluster"
   oc adm policy add-role-to-user view -n ${ODHPROJECT} --rolebinding-name "view-$TEST_USER" $TEST_USER
+  echo $OPENSHIFT_OAUTH_ENDPOINT
   TESTUSER_BEARER_TOKEN="$(curl -kiL -u $TEST_USER:$TEST_PASS -H 'X-CSRF-Token: xxx' $OPENSHIFT_OAUTH_ENDPOINT'/oauth/authorize?response_type=token&client_id=openshift-challenging-client' | grep -oP 'access_token=\K[^&]*')"
 }
 
 function install_trustyai(){
-  oc project ODH_NAMESPACE
+  oc project $ODHPROJECT
   oc apply -f ${RESOURCEDIR}/trustyai/trustyai_operator_kfdef.yaml
   os::cmd::try_until_text "oc get deployment trustyai-operator" "trustyai-operator" $odhdefaulttimeout $odhdefaultinterval
 }
