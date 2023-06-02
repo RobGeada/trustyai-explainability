@@ -25,8 +25,8 @@ if [ -z "${SKIP_INSTALL}" ]; then
     oc new-project ${ODHPROJECT}
     oc project ${ODHPROJECT} # in case a new project is not created
     $HOME/peak/install.sh
-    echo "Sleeping for 5 min to let the KfDef install settle"
-    sleep 5m
+    echo "Sleeping for 30s to let the KfDef install settle"
+    sleep 30s
 
     # Save the list of events and pods that are running prior to the test run
     oc get events --sort-by='{.lastTimestamp}' > ${ARTIFACT_DIR}/pretest-${ODHPROJECT}.events.txt

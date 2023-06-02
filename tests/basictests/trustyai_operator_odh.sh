@@ -25,20 +25,8 @@ function install_trustyai(){
   oc project ODH_NAMESPACE
   oc apply -f ${RESOURCEDIR}/trustyai/trustyai_operator_kfdef.yaml
   os::cmd::try_until_text "oc get deployment trustyai-operator" "trustyai-operator" $odhdefaulttimeout $odhdefaultinterval
-
-  oc project MM_NAMESPACE
 }
 
-
-function check_trustyai_resources() {
-  header "Checking that TrustyAI resources have spun up"
-  oc project $MM_NAMESPACE
-  os::cmd::try_until_text "oc get deployment modelmesh-controller" "modelmesh-controller" $odhdefaulttimeout $odhdefaultinterval
-  os::cmd::try_until_text "oc get deployment trustyai-service" "trustyai-service" $odhdefaulttimeout $odhdefaultinterval
-  os::cmd::try_until_text "oc get route trustyai-service-route" "trustyai-service-route" $odhdefaulttimeout $odhdefaultinterval
-
-  oc wait --for=condition=Ready $(oc get pod -o name | grep trustyai) --timeout=${odhdefaulttimeout}ms
-}
 
 function deploy_model() {
     header "Deploying model into ModelMesh"
@@ -55,9 +43,17 @@ function deploy_model() {
     os::cmd::expect_success "oc apply -f ${RESOURCEDIR}/trustyai/sample-minio.yaml -n ${MM_NAMESPACE}"
     #os::cmd::expect_success "oc apply -f ${RESOURCEDIR}/trustyai/openvino-serving-runtime.yaml -n ${MM_NAMESPACE}"
     os::cmd::expect_success "oc apply -f ${RESOURCEDIR}/trustyai/openvino-inference-service.yaml -n ${MM_NAMESPACE}"
+    os::cmd::expect_success "oc apply -f ${RESOURCEDIR}/trustyai/trustyai_crd.yaml -n ${MM_NAMESPACE}"
     sleep 30
+}
 
+function check_trustyai_resources() {
+  header "Checking that TrustyAI resources have spun up"
+  oc project $MM_NAMESPACE
+  os::cmd::try_until_text "oc get deployment trustyai-service" "trustyai-service" $odhdefaulttimeout $odhdefaultinterval
+  os::cmd::try_until_text "oc get route trustyai-service-route" "trustyai-service-route" $odhdefaulttimeout $odhdefaultinterval
 
+  oc wait --for=condition=Ready $(oc get pod -o name | grep trustyai) --timeout=${odhdefaulttimeout}ms
 }
 
 function check_mm_resources() {
@@ -149,7 +145,9 @@ function teardown_trustyai_test() {
 }
 
 get_authentication
+install_trustyai
 deploy_model
+check_trustyai_resources
 check_mm_resources
 check_communication
 generate_data
