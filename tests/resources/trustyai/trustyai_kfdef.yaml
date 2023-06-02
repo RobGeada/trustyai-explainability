@@ -1,0 +1,18 @@
+apiVersion: kfdef.apps.kubeflow.org/v1
+kind: KfDef
+metadata:
+  name: odh-core
+  namespace: opendatahub
+spec:
+  applications:
+  - kustomizeConfig:
+      repoRef:
+        name: trustyai-manifests
+        path: explainability-service/manifests
+      parameters:
+        - name: image
+          value: "quay.io/trustyai/trustyai-service:latest"
+    name: trustyai
+  repos:
+    - name: trustyai-manifests
+      uri: https://github.com/trustyai-explainability/trustyai-explainability/tarball/main
