@@ -11,5 +11,5 @@ spec:
       name: trustyai-service-operator
   repos:
     - name: manifests
-      uri: https://github.com/trustyai-explainability/trustyai-service-operator
+      uri: https://github.com/trustyai-explainability/trustyai-service-operator/tarball/main
   version: v1.0.0
