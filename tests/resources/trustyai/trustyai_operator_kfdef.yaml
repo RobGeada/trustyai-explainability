@@ -7,7 +7,7 @@ spec:
     - kustomizeConfig:
         repoRef:
           name: manifests
-          path: config/default
+          path: config
       name: trustyai-service-operator
   repos:
     - name: manifests
