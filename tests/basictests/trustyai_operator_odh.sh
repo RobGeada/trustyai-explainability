@@ -144,7 +144,7 @@ function teardown_trustyai_test() {
 }
 
 get_authentication
-install_trustyai
+install_trustyai_operator
 deploy_model
 check_trustyai_resources
 check_mm_resources
