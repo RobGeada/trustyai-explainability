@@ -17,13 +17,16 @@ os::test::junit::declare_suite_start "$MY_SCRIPT"
 
 function get_authentication(){
   header "Getting authentication credentials to cluster"
+
   oc adm policy add-role-to-user view -n ${ODHPROJECT} --rolebinding-name "view-$TEST_USER" $TEST_USER
   echo $OPENSHIFT_OAUTH_ENDPOINT
   TESTUSER_BEARER_TOKEN="$(curl -kiL -u $TEST_USER:$TEST_PASS -H 'X-CSRF-Token: xxx' $OPENSHIFT_OAUTH_ENDPOINT'/oauth/authorize?response_type=token&client_id=openshift-challenging-client' | grep -oP 'access_token=\K[^&]*')"
 }
 
-function install_trustyai(){
+function install_trustyai_operator(){
+  header "Installing TrustyAI Operator"
   oc project $ODHPROJECT
+
   oc apply -f ${RESOURCEDIR}/trustyai/trustyai_operator_kfdef.yaml
   os::cmd::try_until_text "oc get deployment trustyai-operator" "trustyai-operator" $odhdefaulttimeout $odhdefaultinterval
 }
@@ -32,6 +35,7 @@ function install_trustyai(){
 function deploy_model() {
     header "Deploying model into ModelMesh"
     oc new-project $MM_NAMESPACE || true
+
     os::cmd::expect_success "oc project $MM_NAMESPACE"
     os::cmd::expect_success "oc apply -f ${RESOURCEDIR}/modelmesh/service_account.yaml -n ${MM_NAMESPACE}"
     oc label namespace $MM_NAMESPACE "modelmesh-enabled=true" --overwrite=true || echo "Failed to apply modelmesh-enabled label."
@@ -51,6 +55,7 @@ function deploy_model() {
 function check_trustyai_resources() {
   header "Checking that TrustyAI resources have spun up"
   oc project $MM_NAMESPACE
+
   os::cmd::try_until_text "oc get deployment trustyai-service" "trustyai-service" $odhdefaulttimeout $odhdefaultinterval
   os::cmd::try_until_text "oc get route trustyai-service-route" "trustyai-service-route" $odhdefaulttimeout $odhdefaultinterval
 
@@ -60,6 +65,7 @@ function check_trustyai_resources() {
 function check_mm_resources() {
   header "Checking that ModelMesh resources have spun up"
   oc project $MM_NAMESPACE
+
   os::cmd::try_until_text "oc get route example-sklearn-isvc" "example-sklearn-isvc" $odhdefaulttimeout $odhdefaultinterval
   INFER_ROUTE=$(oc get route example-sklearn-isvc --template={{.spec.host}}{{.spec.path}})
   token=$(oc create token user-one -n ${MM_NAMESPACE})
@@ -73,7 +79,6 @@ function check_communication(){
 
     # send some data to modelmesh
     os::cmd::expect_success_and_text "curl -k https://$INFER_ROUTE/infer -d @${RESOURCEDIR}/trustyai/data.json -H 'Authorization: Bearer $token' -i" "model_name"
-    oc project ${ODHPROJECT}
     os::cmd::try_until_text "oc logs $(oc get pods -o name | grep trustyai-service)" "Received partial input payload" $odhdefaulttimeout $odhdefaultinterval
 }
 
@@ -93,7 +98,8 @@ function generate_data(){
 
 function schedule_and_check_request(){
   header "Create a metric request and confirm calculation"
-  oc project $ODHPROJECT
+  oc project $MM_NAMESPACE
+
   TRUSTY_ROUTE=$(oc get route/trustyai --template={{.spec.host}})
 
   os::cmd::expect_success_and_text "curl --location http://$TRUSTY_ROUTE/metrics/spd/request \
@@ -112,13 +118,15 @@ function schedule_and_check_request(){
 
 function test_prometheus_scraping(){
     header "Ensure metrics are in Prometheus"
+    oc project $ODHPROJECT
+
     MODEL_MONITORING_ROUTE=$(oc get route -n ${ODHPROJECT} odh-model-monitoring --template={{.spec.host}})
     os::cmd::try_until_text "curl -k --location -g --request GET 'https://'$MODEL_MONITORING_ROUTE'//api/v1/query?query=trustyai_spd' -H 'Authorization: Bearer $TESTUSER_BEARER_TOKEN' -i" "value" $odhdefaulttimeout $odhdefaultinterval
 }
 
 function teardown_trustyai_test() {
   header "Cleaning up the TrustyAI test"
-  oc project $ODHPROJECT
+  oc project $MM_NAMESPACE
 
   REQUEST_ID="$(curl http://$TRUSTY_ROUTE/metrics/spd/requests | jq '.requests [0].id')"
 
@@ -128,7 +136,6 @@ function teardown_trustyai_test() {
           \"requestId\": \"'"$REQUEST_ID"'\"
         }'" "Removed"
 
-  oc project $MM_NAMESPACE
   os::cmd::expect_success "oc delete -f ${RESOURCEDIR}/trustyai/secret.yaml"
   os::cmd::expect_success "oc delete -f ${RESOURCEDIR}/trustyai/odh-mlserver-0.x.yaml"
   os::cmd::expect_success "oc delete -f ${RESOURCEDIR}/trustyai/model.yaml"
