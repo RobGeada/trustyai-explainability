@@ -21,7 +21,7 @@ TESTS_REGEX=
 ARTIFACT_DIR=/tmp/artifacts
 LOCAL_ARTIFACT_DIR="${PWD}/artifacts"
 
-BUILD_TOOL=podman
+BUILD_TOOL?=podman
 
 all: test
 test: build run clean
