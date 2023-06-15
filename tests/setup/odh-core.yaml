@@ -31,15 +31,15 @@ spec:
           - name: monitoring-namespace
             value: opendatahub
         repoRef:
-          name: manifests
-          path: model-mesh
+          name: trustyai-manifests
+          path: e2e_tests/resources/manifests/model-mesh
       name: model-mesh
     - kustomizeConfig:
         parameters:
           - name: deployment-namespace
             value: opendatahub
         repoRef:
-          name: manifests
+          name: manifestsgit
           path: modelmesh-monitoring
       name: modelmesh-monitoring
 #    - kustomizeConfig:
@@ -54,5 +54,5 @@ spec:
     - name: manifests
       uri: https://github.com/opendatahub-io/odh-manifests/tarball/master
     - name: trustyai-manifests
-      uri: https://github.com/trustyai-explainability/trustyai-explainability/tarball/main
+      uri: https://github.com/trustyai-explainability/trustyai-explainability/tarball/e2e_operator
   version: master
