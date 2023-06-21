@@ -124,6 +124,11 @@ function test_prometheus_scraping(){
     os::cmd::try_until_text "curl -k --location -g --request GET 'https://'$MODEL_MONITORING_ROUTE'//api/v1/query?query=trustyai_spd' -H 'Authorization: Bearer $TESTUSER_BEARER_TOKEN' -i" "value" $odhdefaulttimeout $odhdefaultinterval
 }
 
+function local_teardown_wait(){
+  header "Local test suite finished, pausing before teardown for any manual cluster inspection"
+  echo -n "Hit enter to begin teardown: "; read
+}
+
 function teardown_trustyai_test() {
   header "Cleaning up the TrustyAI test"
   oc project $MM_NAMESPACE
@@ -152,6 +157,8 @@ check_communication
 generate_data
 schedule_and_check_request
 test_prometheus_scraping
+
+local_teardown_wait
 teardown_trustyai_test
 
 
