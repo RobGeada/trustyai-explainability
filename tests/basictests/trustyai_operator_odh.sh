@@ -99,7 +99,7 @@ function schedule_and_check_request(){
   header "Create a metric request and confirm calculation"
   oc project $MM_NAMESPACE
 
-  TRUSTY_ROUTE=$(oc get route/trustyai --template={{.spec.host}})
+  TRUSTY_ROUTE=$(oc get route/trustyai-service --template={{.spec.host}})
 
   os::cmd::expect_success_and_text "curl --location http://$TRUSTY_ROUTE/metrics/spd/request \
     --header 'Content-Type: application/json' \
