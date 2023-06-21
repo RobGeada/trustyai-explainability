@@ -71,4 +71,15 @@ public class PrometheusPublisher {
 
         LOG.info("Scheduled request for DIR id=" + id + ", value=" + value);
     }
+
+    public void gaugeOOD(ReconciledMetricRequest request, String modelName, UUID id, double value) {
+
+        values.put(id, new AtomicDouble(value));
+
+        final Iterable<Tag> tags = generateTags(modelName, id, request);
+
+        createOrUpdateGauge("trustyai_ood", tags, id);
+
+        LOG.info("Scheduled request for OOD id=" + id + ", value=" + value);
+    }
 }

@@ -20,6 +20,7 @@ spec:
         'match[]':
           - '{__name__= "trustyai_spd"}'
           - '{__name__= "trustyai_dir"}'
+          - '{__name__= "trustyai_ood"}'
       metricRelabelings:
         - action: keep
           regex: trustyai_.*

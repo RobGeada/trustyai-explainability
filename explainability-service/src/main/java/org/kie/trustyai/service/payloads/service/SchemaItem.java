@@ -64,6 +64,10 @@ public class SchemaItem {
         return index == that.index && type == that.type && Objects.equals(name, that.name);
     }
 
+    public String toString(){
+        return String.format("%s %s %s %s", this.type, this.name, this.values, this.index);
+    }
+
     @Override
     public int hashCode() {
         return Objects.hash(type, name, index);

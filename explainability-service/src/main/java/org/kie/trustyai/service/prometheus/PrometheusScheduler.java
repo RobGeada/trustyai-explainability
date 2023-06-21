@@ -12,6 +12,7 @@ import javax.inject.Singleton;
 
 import org.jboss.logging.Logger;
 import org.kie.trustyai.explainability.model.Dataframe;
+import org.kie.trustyai.explainability.model.Value;
 import org.kie.trustyai.service.config.ServiceConfig;
 import org.kie.trustyai.service.data.DataSource;
 import org.kie.trustyai.service.data.exceptions.DataframeCreateException;
@@ -26,6 +27,7 @@ public class PrometheusScheduler {
     private static final Logger LOG = Logger.getLogger(PrometheusScheduler.class);
     private final ConcurrentHashMap<UUID, ReconciledMetricRequest> spdRequests = new ConcurrentHashMap<>();
     private final ConcurrentHashMap<UUID, ReconciledMetricRequest> dirRequests = new ConcurrentHashMap<>();
+    private final ConcurrentHashMap<UUID, ReconciledMetricRequest> oodRequests = new ConcurrentHashMap<>();
     @Inject
     Instance<DataSource> dataSource;
     @Inject
@@ -42,6 +44,10 @@ public class PrometheusScheduler {
 
     public Map<UUID, ReconciledMetricRequest> getSpdRequests() {
         return spdRequests;
+    }
+
+    public Map<UUID, ReconciledMetricRequest> getOodRequests() {
+        return oodRequests;
     }
 
     public Map<UUID, ReconciledMetricRequest> getAllRequests() {
@@ -68,6 +74,9 @@ public class PrometheusScheduler {
                     final List<Map.Entry<UUID, ReconciledMetricRequest>> modelDirRequest =
                             dirRequests.entrySet().stream().filter(filterByModelId).collect(Collectors.toList());
 
+                    final List<Map.Entry<UUID, ReconciledMetricRequest>> modelOodRequest =
+                            oodRequests.entrySet().stream().filter(filterByModelId).collect(Collectors.toList());
+
                     // Determine maximum batch requested. All other batches as sub-batches of this one.
                     final int maxBatchSize = Stream.concat(modelSpdRequest.stream(), modelDirRequest.stream())
                             .mapToInt(entry -> entry.getValue().getBatchSize()).max()
@@ -89,6 +98,17 @@ public class PrometheusScheduler {
                         publisher.gaugeDIR(entry.getValue(), modelId, entry.getKey(), dir);
                     });
 
+                    // OOD requests
+                    modelOodRequest.forEach(entry -> {
+                        final Dataframe batch = df.tail(Math.min(df.getRowDimension(), entry.getValue().getBatchSize()));
+                        final int outcomeIDX = batch.getColumnNames().indexOf(entry.getValue().getOutcomeName());
+                        final double ood = batch.getColumn(outcomeIDX)
+                                .stream()
+                                .map(Value::asNumber)
+                                .reduce(0., Double::sum)/batch.getRowDimension();
+                        publisher.gaugeOOD(entry.getValue(), modelId, entry.getKey(), ood);
+                    });
+
                 }
             } catch (DataframeCreateException e) {
                 LOG.error(e.getMessage());
@@ -108,8 +128,13 @@ public class PrometheusScheduler {
         dirRequests.put(id, request);
     }
 
+
+    public void registerOod(UUID id, ReconciledMetricRequest request) {
+        oodRequests.put(id, request);
+    }
+
     public boolean hasRequests() {
-        return !(spdRequests.isEmpty() && dirRequests.isEmpty());
+        return !(spdRequests.isEmpty() && dirRequests.isEmpty() && oodRequests.isEmpty());
     }
 
     /**
@@ -118,7 +143,7 @@ public class PrometheusScheduler {
      * @return Unique models ids
      */
     public Set<String> getModelIds() {
-        return Stream.of(spdRequests.values(), dirRequests.values())
+        return Stream.of(spdRequests.values(), dirRequests.values(), oodRequests.values())
                 .flatMap(Collection::stream)
                 .map(ReconciledMetricRequest::getModelId)
                 .collect(Collectors.toSet());

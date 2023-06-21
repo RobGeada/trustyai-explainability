@@ -2,7 +2,7 @@ package org.kie.trustyai.service.endpoints.consumer;
 
 import java.util.Base64;
 import java.util.UUID;
-
+import java.util.List;
 import javax.enterprise.inject.Instance;
 import javax.inject.Inject;
 import javax.ws.rs.Consumes;
@@ -15,6 +15,7 @@ import javax.ws.rs.core.Response;
 import org.jboss.logging.Logger;
 import org.jboss.resteasy.reactive.RestResponse;
 import org.kie.trustyai.explainability.model.Dataframe;
+import org.kie.trustyai.explainability.model.Prediction;
 import org.kie.trustyai.service.data.DataSource;
 import org.kie.trustyai.service.data.exceptions.DataframeCreateException;
 import org.kie.trustyai.service.data.exceptions.InvalidSchemaException;
@@ -47,10 +48,12 @@ public class ConsumerEndpoint {
         final byte[] outputBytes = Base64.getDecoder().decode(request.getOutput().getBytes());
 
         Dataframe dataframe;
+        final List<Prediction> prediction;
         try {
             dataframe = reconciler.payloadToDataFrame(inputBytes, outputBytes, String.valueOf(UUID.randomUUID()),
                     request.getMetadata(), modelId);
         } catch (DataframeCreateException e) {
+
             LOG.error("Could not create dataframe from payloads: " + e.getMessage());
             return Response.serverError().status(RestResponse.StatusCode.INTERNAL_SERVER_ERROR).build();
         }
