@@ -101,7 +101,7 @@ function schedule_and_check_request(){
 
   TRUSTY_ROUTE=$(oc get route/trustyai-service --template={{.spec.host}})
 
-  os::cmd::expect_success_and_text "curl --location http://$TRUSTY_ROUTE/metrics/spd/request \
+  os::cmd::expect_success_and_text "curl --location https://$TRUSTY_ROUTE/metrics/spd/request \
     --header 'Content-Type: application/json' \
     --data '{
         \"modelId\": \"example-sklearn-isvc\",
@@ -111,7 +111,7 @@ function schedule_and_check_request(){
         \"privilegedAttribute\": 0.0,
         \"unprivilegedAttribute\": 1.0
     }'" "requestId"
-  os::cmd::try_until_text "curl http://$TRUSTY_ROUTE/q/metrics" "trustyai_spd"
+  os::cmd::try_until_text "curl https://$TRUSTY_ROUTE/q/metrics" "trustyai_spd"
 }
 
 
