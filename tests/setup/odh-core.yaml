@@ -39,7 +39,7 @@ spec:
           - name: deployment-namespace
             value: opendatahub
         repoRef:
-          name: manifestsgit
+          name: manifests
           path: modelmesh-monitoring
       name: modelmesh-monitoring
 #    - kustomizeConfig:
