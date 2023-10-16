@@ -96,6 +96,7 @@ public class ConsumerEndpoint {
             return Response.serverError().entity("Unsupported payload kind=" + request.getKind()).status(Response.Status.BAD_REQUEST).build();
         }
 
+        LOG.info("finished consuming "+request.getKind());
         return Response.ok().build();
     }
 }

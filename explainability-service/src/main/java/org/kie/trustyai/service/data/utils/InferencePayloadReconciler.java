@@ -4,6 +4,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 
+import org.jboss.logging.Logger;
 import org.kie.trustyai.explainability.model.Prediction;
 import org.kie.trustyai.service.data.exceptions.DataframeCreateException;
 import org.kie.trustyai.service.data.exceptions.InvalidSchemaException;
@@ -14,6 +15,7 @@ public abstract class InferencePayloadReconciler<T extends PartialPayload, U ext
 
     protected final Map<String, T> unreconciledInputs = new ConcurrentHashMap<>();
     protected final Map<String, U> unreconciledOutputs = new ConcurrentHashMap<>();
+    private static final Logger LOG = Logger.getLogger(InferencePayloadReconciler.class);
 
     /**
      * Add a {@link InferencePartialPayload} input to the (yet) unreconciled mapping.
@@ -22,12 +24,14 @@ public abstract class InferencePayloadReconciler<T extends PartialPayload, U ext
      *
      * @param input
      */
-    public synchronized void addUnreconciledInput(T input) throws InvalidSchemaException, DataframeCreateException {
+    public void addUnreconciledInput(T input) throws InvalidSchemaException, DataframeCreateException {
+        LOG.info("entering input add");
         final String id = input.getId();
         unreconciledInputs.put(id, input);
         if (unreconciledOutputs.containsKey(id)) {
             save(id, input.getModelId());
         }
+        LOG.info("exiting input add");
     }
 
     /**
@@ -37,12 +41,14 @@ public abstract class InferencePayloadReconciler<T extends PartialPayload, U ext
      * 
      * @param output
      */
-    public synchronized void addUnreconciledOutput(U output) throws InvalidSchemaException, DataframeCreateException {
+    public void addUnreconciledOutput(U output) throws InvalidSchemaException, DataframeCreateException {
+        LOG.info("entering output add");
         final String id = output.getId();
         unreconciledOutputs.put(id, output);
         if (unreconciledInputs.containsKey(id)) {
             save(id, output.getModelId());
         }
+        LOG.info("exiting output add");
     }
 
     abstract protected void save(String id, String modelId) throws InvalidSchemaException, DataframeCreateException;

@@ -36,20 +36,30 @@ public class ModelMeshInferencePayloadReconciler extends InferencePayloadReconci
     @Inject
     Instance<DataSource> datasource;
 
-    protected synchronized void save(String id, String modelId) throws InvalidSchemaException, DataframeCreateException {
+    protected void save(String id, String modelId) throws InvalidSchemaException, DataframeCreateException {
         final InferencePartialPayload output = unreconciledOutputs.get(id);
         final InferencePartialPayload input = unreconciledInputs.get(id);
-        LOG.debug("Reconciling partial input and output, id=" + id);
+        LOG.info("Reconciling partial input and output, id=" + id);
 
         // save
 
         final List<Prediction> prediction = payloadToPrediction(input, output, id, input.getMetadata());
         final Dataframe dataframe = Dataframe.createFrom(prediction);
 
-        datasource.get().saveDataframe(dataframe, modelId);
+        LOG.info("dataframe created");
+
+        try {
+            Thread.sleep(10000);
+        } catch (InterruptedException e) {
+            throw new RuntimeException(e);
+        }
+        //datasource.get().saveDataframe(dataframe, modelId);
+
+        LOG.info("dataframe saved");
 
         unreconciledInputs.remove(id);
         unreconciledOutputs.remove(id);
+        LOG.info("save done");
     }
 
     /**
