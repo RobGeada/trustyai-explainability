@@ -2,6 +2,7 @@ package org.kie.trustyai.service.data.utils;
 
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.concurrent.ConcurrentHashMap;
 
 import org.jboss.logging.Logger;
@@ -10,6 +11,7 @@ import org.kie.trustyai.service.data.exceptions.DataframeCreateException;
 import org.kie.trustyai.service.data.exceptions.InvalidSchemaException;
 import org.kie.trustyai.service.payloads.consumer.InferencePartialPayload;
 import org.kie.trustyai.service.payloads.consumer.PartialPayload;
+import org.kie.trustyai.service.payloads.values.DataType;
 
 public abstract class InferencePayloadReconciler<T extends PartialPayload, U extends PartialPayload> {
 
@@ -51,7 +53,26 @@ public abstract class InferencePayloadReconciler<T extends PartialPayload, U ext
         LOG.info("exiting output add");
     }
 
+
+    protected class OptionallyTypedPredictionList {
+       List<DataType> inputTypes;
+       List<DataType> outputTypes;
+       List<Prediction> predictions;
+
+        public OptionallyTypedPredictionList(List<DataType> inputTypes, List<DataType> outputTypes, List<Prediction> predictions) {
+            this.inputTypes = inputTypes;
+            this.outputTypes = outputTypes;
+            this.predictions = predictions;
+        }
+
+        public OptionallyTypedPredictionList(List<Prediction> predictions){
+            this.predictions = predictions;
+            inputTypes = null;
+            outputTypes = null;
+        }
+    }
+
     abstract protected void save(String id, String modelId) throws InvalidSchemaException, DataframeCreateException;
 
-    abstract public List<Prediction> payloadToPrediction(T inputPayload, U outputPayload, String id, Map<String, String> metadata) throws DataframeCreateException;
+    public abstract OptionallyTypedPredictionList payloadToPrediction(T inputPayload, U outputPayload, String id, Map<String, String> metadata) throws DataframeCreateException;
 }

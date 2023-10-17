@@ -18,6 +18,7 @@ import org.kie.trustyai.service.data.DataSource;
 import org.kie.trustyai.service.data.exceptions.DataframeCreateException;
 import org.kie.trustyai.service.data.exceptions.InvalidSchemaException;
 import org.kie.trustyai.service.endpoints.explainers.ExplainerEndpoint;
+import org.kie.trustyai.service.payloads.PayloadConverter;
 import org.kie.trustyai.service.payloads.consumer.InferencePartialPayload;
 
 import com.google.protobuf.InvalidProtocolBufferException;
@@ -25,6 +26,7 @@ import com.google.protobuf.InvalidProtocolBufferException;
 import jakarta.enterprise.inject.Instance;
 import jakarta.inject.Inject;
 import jakarta.inject.Singleton;
+import org.kie.trustyai.service.payloads.values.DataType;
 
 /**
  * Reconcile partial input and output inference payloads in the KServe v2 protobuf format.
@@ -42,25 +44,17 @@ public class ModelMeshInferencePayloadReconciler extends InferencePayloadReconci
         LOG.info("Reconciling partial input and output, id=" + id);
 
         // save
+        final OptionallyTypedPredictionList optionallyTypedPredictionList = payloadToPrediction(input, output, id, input.getMetadata());
+        final Dataframe dataframe = Dataframe.createFrom(optionallyTypedPredictionList.predictions);
 
-        final List<Prediction> prediction = payloadToPrediction(input, output, id, input.getMetadata());
-        final Dataframe dataframe = Dataframe.createFrom(prediction);
-
-        LOG.info("dataframe created");
-
-        try {
-            Thread.sleep(10000);
-        } catch (InterruptedException e) {
-            throw new RuntimeException(e);
-        }
-        //datasource.get().saveDataframe(dataframe, modelId);
+        datasource.get().saveDataframe(dataframe, modelId, optionallyTypedPredictionList.inputTypes, optionallyTypedPredictionList.outputTypes);
 
         LOG.info("dataframe saved");
 
         unreconciledInputs.remove(id);
         unreconciledOutputs.remove(id);
-        LOG.info("save done");
     }
+
 
     /**
      * Convert both input and output {@link InferencePartialPayload} to a TrustyAI {@link Prediction}.
@@ -71,21 +65,29 @@ public class ModelMeshInferencePayloadReconciler extends InferencePayloadReconci
      * @return A {@link Prediction}
      * @throws DataframeCreateException
      */
-    public List<Prediction> payloadToPrediction(InferencePartialPayload inputPayload, InferencePartialPayload outputPayload, String id, Map<String, String> metadata) throws DataframeCreateException {
+    public OptionallyTypedPredictionList payloadToPrediction(InferencePartialPayload inputPayload, InferencePartialPayload outputPayload, String id, Map<String, String> metadata) throws DataframeCreateException {
         final byte[] inputBytes = Base64.getDecoder().decode(inputPayload.getData().getBytes());
         final byte[] outputBytes = Base64.getDecoder().decode(outputPayload.getData().getBytes());
 
         final ModelInferRequest input;
         try {
             input = ModelInferRequest.parseFrom(inputBytes);
+
         } catch (InvalidProtocolBufferException e) {
             throw new DataframeCreateException(e.getMessage());
         }
         final List<PredictionInput> predictionInput;
+        List<DataType> inputTypes = null;
         final int enforcedFirstDimension;
         try {
             predictionInput = TensorConverter.parseKserveModelInferRequest(input);
+            List<DataType> candidateInputTypes = input.getInputsList().stream().map(iit -> PayloadConverter.payloadTypeToDataType(iit.getDatatype())).collect(Collectors.toList());
             enforcedFirstDimension = predictionInput.size();
+            System.out.println("input types: " + candidateInputTypes.size() + " , efd: " + enforcedFirstDimension);
+            if (candidateInputTypes.size() == enforcedFirstDimension){
+                inputTypes = candidateInputTypes;
+            }
+
         } catch (IllegalArgumentException e) {
             throw new DataframeCreateException("Error parsing input payload: " + e.getMessage());
         }
@@ -97,8 +99,13 @@ public class ModelMeshInferencePayloadReconciler extends InferencePayloadReconci
             throw new DataframeCreateException(e.getMessage());
         }
         final List<PredictionOutput> predictionOutput;
+        List<DataType> outputTypes = null;
         try {
             predictionOutput = TensorConverter.parseKserveModelInferResponse(output, enforcedFirstDimension);
+            List<DataType> candidateOutputTypes = output.getOutputsList().stream().map(iot -> PayloadConverter.payloadTypeToDataType(iot.getDatatype())).collect(Collectors.toList());
+            if (candidateOutputTypes.size() == predictionOutput.size()){
+                outputTypes = candidateOutputTypes;
+            }
         } catch (IllegalArgumentException e) {
             throw new DataframeCreateException("Error parsing output payload: " + e.getMessage());
         }
@@ -106,11 +113,11 @@ public class ModelMeshInferencePayloadReconciler extends InferencePayloadReconci
 
         // Aggregate features and outputs
         final int size = predictionInput.size();
-        return IntStream.range(0, size).mapToObj(i -> {
+        return new OptionallyTypedPredictionList(inputTypes, outputTypes, IntStream.range(0, size).mapToObj(i -> {
             final PredictionInput pi = predictionInput.get(i);
             final PredictionOutput po = predictionOutput.get(i);
             return new SimplePrediction(pi, po);
-        }).collect(Collectors.toCollection(ArrayList::new));
+        }).collect(Collectors.toCollection(ArrayList::new)));
     }
 
     public Dataframe payloadToDataFrame(byte[] inputs, byte[] outputs, String id, Map<String, String> metadata,

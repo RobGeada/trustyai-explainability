@@ -4,6 +4,7 @@ import java.nio.ByteBuffer;
 import java.nio.charset.StandardCharsets;
 import java.util.HashMap;
 import java.util.HashSet;
+import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
@@ -26,6 +27,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import jakarta.enterprise.inject.Instance;
 import jakarta.inject.Inject;
 import jakarta.inject.Singleton;
+import org.kie.trustyai.service.payloads.values.DataType;
 
 @Singleton
 public class DataSource {
@@ -112,7 +114,15 @@ public class DataSource {
         saveDataframe(dataframe, modelId, false);
     }
 
-    public synchronized void saveDataframe(final Dataframe dataframe, final String modelId, boolean overwrite) throws InvalidSchemaException {
+    public void saveDataframe(final Dataframe dataframe, final String modelId, boolean overwrite) throws InvalidSchemaException {
+        saveDataframe(dataframe, modelId, null, null, overwrite);
+    }
+
+    public void saveDataframe(final Dataframe dataframe, final String modelId, List<DataType> inputTypes, List<DataType> outputTypes) throws InvalidSchemaException {
+        saveDataframe(dataframe, modelId, inputTypes, outputTypes, false);
+    }
+
+    public synchronized void saveDataframe(final Dataframe dataframe, final String modelId, List<DataType> inputTypes, List<DataType> outputTypes, boolean overwrite) throws InvalidSchemaException {
         // Add to known models
         this.knownModels.add(modelId);
 
@@ -120,9 +130,12 @@ public class DataSource {
             // If metadata is not present, create it
             // alternatively, overwrite existing metadata if requested
             LOG.info("Creating metadata");
+
+            LOG.info("n input types: " + (inputTypes == null ? "null" : inputTypes.size()));
+            LOG.info("n output types: "+ (outputTypes == null ? "null" : outputTypes.size()));
             final Metadata metadata = new Metadata();
-            metadata.setInputSchema(MetadataUtils.getInputSchema(dataframe));
-            metadata.setOutputSchema(MetadataUtils.getOutputSchema(dataframe));
+            metadata.setInputSchema(MetadataUtils.getInputSchema(dataframe, inputTypes));
+            metadata.setOutputSchema(MetadataUtils.getOutputSchema(dataframe, outputTypes));
             metadata.setModelId(modelId);
             metadata.setObservations(dataframe.getRowDimension());
             LOG.info("saving metadata");
@@ -136,8 +149,12 @@ public class DataSource {
             final Metadata metadata = getMetadata(modelId);
 
             // validate metadata
-            Schema newInputSchema = MetadataUtils.getInputSchema(dataframe);
-            Schema newOutputSchema = MetadataUtils.getOutputSchema(dataframe);
+            LOG.info("validating metadata");
+
+            LOG.info("n input types: " + (inputTypes == null ? "null" : inputTypes.size()));
+            LOG.info("n output types: "+ (outputTypes == null ? "null" : outputTypes.size()));
+            Schema newInputSchema = MetadataUtils.getInputSchema(dataframe, inputTypes);
+            Schema newOutputSchema = MetadataUtils.getOutputSchema(dataframe, outputTypes);
 
             if (metadata.getInputSchema().equals(newInputSchema) && metadata.getOutputSchema().equals(newOutputSchema)) {
                 metadata.incrementObservations(dataframe.getRowDimension());
