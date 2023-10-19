@@ -3,6 +3,8 @@ package org.kie.trustyai.service.data.utils;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.Base64;
+import java.util.Collection;
+import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
@@ -81,13 +83,20 @@ public class ModelMeshInferencePayloadReconciler extends InferencePayloadReconci
         final int enforcedFirstDimension;
         try {
             predictionInput = TensorConverter.parseKserveModelInferRequest(input);
-            List<DataType> candidateInputTypes = input.getInputsList().stream().map(iit -> PayloadConverter.payloadTypeToDataType(iit.getDatatype())).collect(Collectors.toList());
             enforcedFirstDimension = predictionInput.size();
-            System.out.println("input types: " + candidateInputTypes.size() + " , efd: " + enforcedFirstDimension);
-            if (candidateInputTypes.size() == enforcedFirstDimension){
-                inputTypes = candidateInputTypes;
+            if (predictionInput.size() == 1) {
+                List<DataType> candidateInputTypes = input.getInputsList().stream().map(iit -> {
+                            DataType dt = PayloadConverter.payloadTypeToDataType(iit.getDatatype());
+                            int listSizeProduct = iit.getShapeList().stream().reduce(1L, (x, y) -> x * y).intValue();
+                            return Collections.nCopies(listSizeProduct, dt);
+                        })
+                        .flatMap(Collection::stream)
+                        .collect(Collectors.toList());
+                if (candidateInputTypes.size() == predictionInput.get(0).getFeatures().size()){
+                    inputTypes = candidateInputTypes;
+                }
+                System.out.println("input types: " + candidateInputTypes.size() + " , efd: " + predictionInput.get(0).getFeatures().size());
             }
-
         } catch (IllegalArgumentException e) {
             throw new DataframeCreateException("Error parsing input payload: " + e.getMessage());
         }
@@ -102,9 +111,18 @@ public class ModelMeshInferencePayloadReconciler extends InferencePayloadReconci
         List<DataType> outputTypes = null;
         try {
             predictionOutput = TensorConverter.parseKserveModelInferResponse(output, enforcedFirstDimension);
-            List<DataType> candidateOutputTypes = output.getOutputsList().stream().map(iot -> PayloadConverter.payloadTypeToDataType(iot.getDatatype())).collect(Collectors.toList());
-            if (candidateOutputTypes.size() == predictionOutput.size()){
-                outputTypes = candidateOutputTypes;
+            if (predictionOutput.size() == 1) {
+                List<DataType> candidateOutputTypes = output.getOutputsList().stream().map(iot -> {
+                            DataType dt = PayloadConverter.payloadTypeToDataType(iot.getDatatype());
+                            int listSizeProduct = iot.getShapeList().stream().reduce(1L, (x, y) -> x * y).intValue();
+                            return Collections.nCopies(listSizeProduct, dt);
+                        })
+                        .flatMap(Collection::stream)
+                        .collect(Collectors.toList());
+                if (candidateOutputTypes.size() == predictionOutput.get(0).getOutputs().size()){
+                    outputTypes = candidateOutputTypes;
+                }
+                System.out.println("output types: " + candidateOutputTypes.size() + " , efd: " + predictionOutput.get(0).getOutputs().size());
             }
         } catch (IllegalArgumentException e) {
             throw new DataframeCreateException("Error parsing output payload: " + e.getMessage());

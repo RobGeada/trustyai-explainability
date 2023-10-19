@@ -7,6 +7,7 @@ import java.util.Optional;
 import java.util.Set;
 import java.util.function.Function;
 import java.util.stream.Collectors;
+import java.util.stream.Stream;
 
 import org.jboss.logging.Logger;
 import org.kie.trustyai.explainability.model.Dataframe;
@@ -15,6 +16,8 @@ import org.kie.trustyai.service.data.DataSource;
 import org.kie.trustyai.service.payloads.service.Schema;
 import org.kie.trustyai.service.payloads.service.SchemaItem;
 import org.kie.trustyai.service.payloads.values.DataType;
+
+import javax.print.DocFlavor;
 
 public class MetadataUtils {
     private static final Logger LOG = Logger.getLogger(MetadataUtils.class);
@@ -44,33 +47,41 @@ public class MetadataUtils {
         }
     }
 
-    public static SchemaItem extractRowSchema(Dataframe dataframe, int i, boolean computeUniqueValues, List<DataType> dataTypes) {
+
+    private static SchemaItem populateSchemaItem(String name, int i, Set<Object> values, DataType dataType){
         final SchemaItem schemaItem = new SchemaItem();
-
-        // if we've specified the data types already, no need to infer them
-        if (i%500==0) {
-            LOG.info("row schema " + i);
-        }
-        if (dataTypes != null && i < dataTypes.size()){
-            schemaItem.setType(dataTypes.get(i));
-        } else {
-            // otherwise, infer the types
-            final Value value = dataframe.getValue(0, i);
-            schemaItem.setType(MetadataUtils.inferType(value));
-        }
-        schemaItem.setName(dataframe.getColumnNames().get(i));
-
-        // grab unique values
-        if (computeUniqueValues) {
-            Optional<Set<Object>> uniqueValues = getUniqueValuesShortCircuited(dataframe.getColumn(i));
-            schemaItem.setValues(uniqueValues.orElse(null));
-        } else {
-            schemaItem.setValues(null);
-        }
-
+        schemaItem.setType(dataType);
+        schemaItem.setName(name);
         schemaItem.setIndex(i);
+        schemaItem.setValues(values);
         return schemaItem;
     }
+
+    // infer datatype, do not get unique value enumeration
+    private static SchemaItem extractRowSchemaNoUniquesNoDatatype(Dataframe dataframe, int i, String name) {
+        final Value value = dataframe.getValue(0, i);
+        return populateSchemaItem(name, i, null, MetadataUtils.inferType(value));
+
+    }
+
+    // use known datatype, do not get unique value enumeration
+    private static SchemaItem extractRowSchemaNoUniquesWithDatatype(Dataframe dataframe, int i, DataType dataType, String name){
+        return populateSchemaItem(name, i, null, dataType);
+    }
+
+    // infer datatype, get unique value enumeration
+    private static SchemaItem extractRowSchemaUniquesNoDatatype(Dataframe dataframe, int i, String name){
+        Optional<Set<Object>> uniqueValues = getUniqueValuesShortCircuited(dataframe.getColumn(i));
+        final Value value = dataframe.getValue(0, i);
+        return populateSchemaItem(name, i, uniqueValues.orElse(null), MetadataUtils.inferType(value));
+    }
+
+    // use known datatype, get unique value enumeration
+    private static SchemaItem extractRowSchemaUniquesWithDatatype(Dataframe dataframe, int i, DataType dataType, String name){
+        Optional<Set<Object>> uniqueValues = getUniqueValuesShortCircuited(dataframe.getColumn(i));
+        return populateSchemaItem(name, i, uniqueValues.orElse(null), dataType);
+    }
+
 
     private static Optional<Set<Object>> getUniqueValuesShortCircuited(List<Value> column){
         Set<Object> uniqueValues = new HashSet<>();
@@ -86,37 +97,44 @@ public class MetadataUtils {
         return Optional.of(uniqueValues);
     }
 
+    // use specialized function for map inner loop, depending on necessary computations
+    private static Schema getGenericSchema(Stream<Integer> intStream, Dataframe dataframe, List<DataType> dataTypes){
+        boolean computeUniqueValues = true; //dataframe.getColumnDimension() < 100;
+        List<String> dataframeColumnNames = dataframe.getColumnNames();
+        Stream<SchemaItem> schemaItemStream;
+        if (computeUniqueValues && dataTypes == null){
+            LOG.info("case 1");
+            schemaItemStream = intStream.map(i -> extractRowSchemaUniquesNoDatatype(dataframe, i, dataframeColumnNames.get(i)));
+        } else if (computeUniqueValues && dataTypes != null){
+            LOG.info("case 2");
+            LOG.info("n cols: " + dataTmes.size());
+            schemaItemStream = intStream.map(i -> extractRowSchemaUniquesWithDatatype(dataframe, i, dataTypes.get(i), dataframeColumnNames.get(i)));
+        } else if (!computeUniqueValues && dataTypes == null){
+            LOG.info("case 3");
+            LOG.info("n cols: " + dataframeColumnNames.size());
+            schemaItemStream = intStream.map(i -> extractRowSchemaNoUniquesNoDatatype(dataframe, i, dataframeColumnNames.get(i)));
+        } else {
+            LOG.info("case 4");
+            schemaItemStream = intStream.map(i -> extractRowSchemaNoUniquesWithDatatype(dataframe, i, dataTypes.get(i), dataframeColumnNames.get(i)));
+        }
+        return Schema.from(schemaItemStream.collect(Collectors.toMap(SchemaItem::getName, Function.identity())));
+    }
+
     public static Schema getInputSchema(Dataframe dataframe) {
-        boolean computeUniqueValues = dataframe.getColumnDimension() < 100;
-        return Schema.from(dataframe
-                .getInputsIndices()
-                .stream()
-                .map(i -> extractRowSchema(dataframe, i, computeUniqueValues, null))
-                .collect(Collectors.toMap(SchemaItem::getName, Function.identity())));
+        return getGenericSchema(dataframe.getInputsIndices().stream(), dataframe, null);
+
     }
 
     public static Schema getOutputSchema(Dataframe dataframe) {
-        boolean computeUniqueValues = dataframe.getColumnDimension() < 100;
-        return Schema.from(dataframe.getOutputsIndices().stream()
-                .map(i -> extractRowSchema(dataframe, i, computeUniqueValues, null))
-                .collect(Collectors.toMap(SchemaItem::getName, Function.identity())));
+        return getGenericSchema(dataframe.getOutputsIndices().stream(), dataframe, null);
     }
 
-
     public static Schema getInputSchema(Dataframe dataframe, List<DataType> dataTypes) {
-        boolean computeUniqueValues = dataframe.getColumnDimension() < 100;
-        return Schema.from(dataframe
-                .getInputsIndices()
-                .stream()
-                .map(i -> extractRowSchema(dataframe, i, computeUniqueValues, dataTypes))
-                .collect(Collectors.toMap(SchemaItem::getName, Function.identity())));
+        return getGenericSchema(dataframe.getInputsIndices().stream(), dataframe, dataTypes);
+
     }
 
     public static Schema getOutputSchema(Dataframe dataframe, List<DataType> dataTypes) {
-        boolean computeUniqueValues = dataframe.getColumnDimension() < 100;
-        return Schema.from(dataframe.getOutputsIndices().stream()
-                .map(i -> extractRowSchema(dataframe, i, computeUniqueValues, dataTypes))
-                .collect(Collectors.toMap(SchemaItem::getName, Function.identity())));
+        return getGenericSchema(dataframe.getOutputsIndices().stream(), dataframe, dataTypes);
     }
-
 }

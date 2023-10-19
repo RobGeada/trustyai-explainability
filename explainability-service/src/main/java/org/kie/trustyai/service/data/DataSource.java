@@ -135,7 +135,9 @@ public class DataSource {
             LOG.info("n output types: "+ (outputTypes == null ? "null" : outputTypes.size()));
             final Metadata metadata = new Metadata();
             metadata.setInputSchema(MetadataUtils.getInputSchema(dataframe, inputTypes));
+            LOG.info("Input metadata done");
             metadata.setOutputSchema(MetadataUtils.getOutputSchema(dataframe, outputTypes));
+            LOG.info("Output metadata done");
             metadata.setModelId(modelId);
             metadata.setObservations(dataframe.getRowDimension());
             LOG.info("saving metadata");
