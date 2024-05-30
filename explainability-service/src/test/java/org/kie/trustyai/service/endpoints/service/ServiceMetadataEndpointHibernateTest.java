@@ -220,6 +220,15 @@ class ServiceMetadataEndpointHibernateTest {
                 .statusCode(200)
                 .body(is("Feature and output name mapping successfully applied."));
 
+        final String metadataResponse = given()
+                .when().get(metadataUrl)
+                .then()
+                .statusCode(RestResponse.StatusCode.OK)
+                .extract()
+                .body().asPrettyString();
+
+        System.out.println(metadataResponse);
+
         final List<ServiceMetadata> serviceMetadata = given()
                 .when().get(metadataUrl)
                 .then()
@@ -239,7 +248,7 @@ class ServiceMetadataEndpointHibernateTest {
         }
 
         // make sure that overwritten field names don't appear
-        Set<String> allInputColNames = serviceMetadata.get(0).getData().getInputSchema().getNameMappedItems().keySet();
+        Set<String> allInputColNames = serviceMetadata.get(0).getData().getInputSchema().getItems().keySet();
         assertFalse(allInputColNames.contains("age"));
         assertTrue(allInputColNames.contains("Age Mapped"));
         assertFalse(allInputColNames.contains("gender"));
@@ -473,7 +482,6 @@ class ServiceMetadataEndpointHibernateTest {
                 .statusCode(200)
                 .extract()
                 .body().asString();
-
 
         assertEquals(2, serviceMetadata.size());
         // Model A

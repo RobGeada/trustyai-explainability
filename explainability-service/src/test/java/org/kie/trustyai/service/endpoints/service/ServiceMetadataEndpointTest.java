@@ -238,7 +238,7 @@ class ServiceMetadataEndpointTest {
         }
 
         // make sure that overwritten field names don't appear
-        Set<String> allInputColNames = serviceMetadata.get(0).getData().getInputSchema().getNameMappedItems().keySet();
+        Set<String> allInputColNames = serviceMetadata.get(0).getData().getInputSchema().getItems().keySet();
         assertFalse(allInputColNames.contains("age"));
         assertTrue(allInputColNames.contains("Age Mapped"));
         assertFalse(allInputColNames.contains("gender"));

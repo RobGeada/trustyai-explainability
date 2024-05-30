@@ -14,6 +14,7 @@ import org.kie.trustyai.service.payloads.service.DataTagging;
 import org.kie.trustyai.service.payloads.service.NameMapping;
 import org.kie.trustyai.service.payloads.service.Schema;
 import org.kie.trustyai.service.payloads.service.ServiceMetadata;
+import org.kie.trustyai.service.payloads.service.readable.ReadableStorageMetadata;
 import org.kie.trustyai.service.prometheus.PrometheusScheduler;
 import org.kie.trustyai.service.validators.generic.GenericValidationUtils;
 import org.kie.trustyai.service.validators.serviceRequests.ValidNameMappingRequest;
@@ -63,7 +64,7 @@ public class ServiceMetadataEndpoint {
 
             try {
                 final StorageMetadata storageMetadata = dataSource.get().getMetadata(modelId, true);
-                serviceMetadata.setData(storageMetadata);
+                serviceMetadata.setData(new ReadableStorageMetadata(storageMetadata));
             } catch (DataframeCreateException | StorageReadException | NullPointerException e) {
                 LOG.warn("Problem creating dataframe: " + e.getMessage(), e);
             }
