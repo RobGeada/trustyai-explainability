@@ -1,9 +1,11 @@
 package org.kie.trustyai.service.endpoints.metrics.fairness.group;
 
+import java.util.HashMap;
 import java.util.Map;
 import java.util.UUID;
 
 import org.jboss.resteasy.reactive.RestResponse;
+import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.kie.trustyai.service.config.ServiceConfig;
@@ -14,6 +16,7 @@ import org.kie.trustyai.service.payloads.BaseScheduledResponse;
 import org.kie.trustyai.service.payloads.metrics.BaseMetricRequest;
 import org.kie.trustyai.service.payloads.metrics.fairness.group.GroupMetricRequest;
 import org.kie.trustyai.service.payloads.scheduler.ScheduleList;
+import org.kie.trustyai.service.payloads.service.NameMapping;
 
 import io.restassured.http.ContentType;
 
@@ -23,6 +26,7 @@ import jakarta.ws.rs.core.Response;
 
 import static io.restassured.RestAssured.given;
 import static org.hamcrest.Matchers.containsString;
+import static org.hamcrest.Matchers.is;
 import static org.junit.jupiter.api.Assertions.*;
 
 abstract class GroupStatisticalParityDifferenceRequestsEndpointBaseTest {
@@ -37,6 +41,11 @@ abstract class GroupStatisticalParityDifferenceRequestsEndpointBaseTest {
 
     @Inject
     Instance<ServiceConfig> serviceConfig;
+
+    @AfterEach
+    void clearRequests() {
+        scheduler.get().getAllRequests().clear();
+    }
 
     /**
      * When no batch size is specified in the request, the service's default batch size should be used
@@ -169,6 +178,50 @@ abstract class GroupStatisticalParityDifferenceRequestsEndpointBaseTest {
 
         // Correct number of active requests
         assertEquals(2, scheduleList.requests.size());
+    }
+
+    /**
+     * When no batch size is specified in the request, the service's default batch size should be used
+     */
+    @Test
+    void postCorrectRequestNameMapped() {
+
+        final GroupMetricRequest payload = RequestPayloadGenerator.correct();
+        payload.setProtectedAttribute("Gender Mapped");
+
+        HashMap<String, String> inputMapping = new HashMap<>();
+        HashMap<String, String> outputMapping = new HashMap<>();
+        inputMapping.put("age", "Age Mapped");
+        inputMapping.put("gender", "Gender Mapped");
+        NameMapping nameMapping = new NameMapping(MODEL_ID, inputMapping, outputMapping);
+
+        given()
+                .contentType(ContentType.JSON)
+                .body(nameMapping)
+                .basePath("/info")
+                .when().post("/names").peek()
+                .then()
+                .statusCode(200)
+                .body(is("Feature and output name mapping successfully applied."));
+
+        final BaseScheduledResponse response = given()
+                .contentType(ContentType.JSON)
+                .body(payload)
+                .when().post("/request")
+                .then()
+                .statusCode(Response.Status.OK.getStatusCode())
+                .extract()
+                .body().as(BaseScheduledResponse.class);
+
+        // Get stored request
+        final GroupMetricRequest request = (GroupMetricRequest) scheduler
+                .get()
+                .getRequests("SPD")
+                .get(response.getRequestId());
+
+        final int defaultBatchSize = serviceConfig.get().batchSize().getAsInt();
+        assertEquals(defaultBatchSize, request.getBatchSize());
+
     }
 
 }
